@@ -1,0 +1,371 @@
+---
+title: "Projeto 1"
+author: "Gabriel Victor Soares dos Santos RA:197563"
+date: "01/10/2021"
+output:
+  pdf_document: default
+header-includes: \usepackage{float} \usepackage{enumitem} \usepackage{graphicx}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r pressure, echo=FALSE, message=FALSE, warning=FALSE}
+# Primeiro baixamos todas as bibliotecas
+#install.packages("ggplot2")
+#install.packages("ggthemes")
+#install.packages("dplyr")
+#install.packages("faraway")
+#install.packages("knitr")
+#install.packages("kableExtra")
+#install.packages("psych")
+#install.packages("GGally")
+#install.packages("car")
+#install.packages(tidyverse)
+#install.packages("gridExtra")
+
+# Depois chamamos as bibliotecas necessárias para o programa
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(faraway)
+library(knitr)
+library(kableExtra)
+library(psych)
+library(GGally)
+library(car)
+library(tidyverse)
+library(gridExtra)
+df <- teengamb
+```
+
+\section{1. Introdução}
+
+Este trabalho tem como objetivo a aplicação de técnicas estatísticas fazendo análises descritivas, exploratórias e inferenciais sobre um modelo de regressão linear simples. Além de servir como método avaliativo para a matéria \textbf{ME613} - Análise de Regressão da Universidade Estadual de Campinas.
+
+Dentre os bancos de dados disponíveis, foi escolhido "\textit{teengamb}", um conjunto de dados coletados em 1988, pelo departamento de psicologia da Universidade de Exeter, Inglaterra, que pesquisava sobre a menor idade de apostas em adolescentes britânicos.   
+
+\section{2. Metodologia}
+
+Os pesquisadores, Susan G. Ide-Smith  e Stephen E. G. Lea, fizeram um questionário de 9 páginas, com uma amostra de 51 adolescentes, com média de 13.7 anos, em uma escola de Exerter. Desse questionário, estão presentes neste banco de dados as seguintes variáveis: gênero, status socio-econômico de um dos pais, renda semanal do adolescente (em libras), gasto anual em apostas (em libras) e \textit{verbal} que media a inteligência pela Escala de Vocabulário Mill Hill (\textit{Mill Hill Vocabulary Scale, abreviadamente MHV}). 
+
+Neste trabalho é utilizada a linguagem de programação R e o programa \textit{RStudio} para os testes, cálculos e criação de tabelas e gráficos. O refinamento dos modelos encontrados não serão feitos, pois esse conteúdo não faz parte da matéria dada até a entrega deste trabalho.
+
+\textit{Obs: Não foram encontradas informações suficientes a respeito da classificação da variável "status" desse conjunto de dados e será tratada como uma variável quantitativa}
+
+\section{3. Descrição Dados}
+
+O conjunto é composto de 5 variáveis, com 47 observações ao todo porque 4 questionários foram descartados pelos pesquisadores por não conter informações suficientes.   
+
+A Tabela 1 apresenta o número de participantes de cada gênero e a Tabela 2 algumas medidas sumárias da amostra inteira. A renda semanal foi multiplicada pelo número de semanas em um ano, a fim de facilitar cálculos e criar uma equivalência com o gasto anual em aposta.  
+
+```{r tabela1, echo=FALSE, message=FALSE, warning=FALSE}
+# Criação da tabela 1, em relação ao gêneros dos participantes
+
+t1 <- data.frame(table(df$sex))
+t1$Var1 <- as.character(t1$Var1)
+t1[1,1] <- "Feminino"
+t1[2,1] <- "Masculino"
+colnames(t1) <- c("Gênero","Participantes")
+
+knitr::kable(list(t1), booktabs = TRUE, valign = 't',caption = "Total de Participantes por Gênero") %>% kable_styling(latex_options = "HOLD_position")
+```
+
+```{r arrumando os dados, echo=FALSE, message=FALSE, warning=FALSE}
+# Arrumamos os dados para melhor trabalharmos com eles 
+
+# A variável "income" foi calculada por semana, então multiplicamos por 52 para termos a renda anual, assim igualando a varirável "gamble" que foi calculada por ano 
+
+df$income <- df$income*52
+
+# Substituimos M e F por 0 e 1, tornando mais fáceis de utilizar 
+df <- df %>%
+        mutate(sex = replace(sex, sex == 0, 'M'))
+
+df <- df %>%
+        mutate(sex = replace(sex, sex == 1, 'F'))
+
+```
+
+```{r tabela2, echo=FALSE, message=FALSE, warning=FALSE}
+# Criação da tabela quantitativa
+
+sumario <- df %>% select("Renda (anual)" = income, "Status" = status, "Verbal" = verbal, "Gamble" = gamble) %>% describe() %>% select("Média" = mean, "Desvio Padrão" = sd, "Mediana" = median, "Valor Mínimo" = min, "Valor Máximo" = max) 
+
+knitr::kable(sumario, caption = "Medidas Sumárias das Variáveis Quantitativas") %>% kable_styling(latex_options = "HOLD_position")
+```
+
+Observando a mediana do gasto de apostas anual vemos que é de 6 libras, enquanto a média é de quase 20 libras, o que poderia indicar uma baixa frequência em apostas nesta amostra, mas com participantes que apostam somas consideráveis de dinheiro.
+
+A maioria dos participantes se concentra entorno de 7 pontos na Escala de Vocabulário Mill Hill, na variável \textit{Verbal}, podendo indicar uma inteligência mediana da amostra.
+
+\section{4. Analise exploratória}
+
+Pela Correlação de Pearson é possível quantificar a correlação entre as variáveis, além de determinar se a variáveis são direta, ou inversamente, proporcionais
+
+```{r correlação, echo=FALSE, message=FALSE, warning=FALSE}
+plot_corr <- df %>% select("Status" = status ,"Renda (anual)" =  income, "Verbal" = verbal, "Aposta (anual)" = gamble)
+ggpairs(plot_corr) +
+  ggtitle("Correlação Entre as Variáveis Quantitativas") + 
+theme_tufte()
+
+```
+
+Segundo o gráfico a menor correlação foi de -22%, entre a variável resposta e a variável \textit{Verbal}, que é considerado uma correlação negativa fraca. A maior correlação foi de 62,2% entre a variável Renda e Aposta, sendo uma correlação moderadamente positiva. Quanto a correlação entre Aposta e Status é quase inexistente por ser próximo de 0.
+
+Destaca-se a seguir os gráficos de dispersão mais importantes, eles pode nos indicar visualmente um pouco do que foi apresentado no gráfico de Correlação de Pearson, apresentados anteriormente. 
+
+```{r plot, echo=FALSE, message=FALSE, warning=FALSE}
+plot_income <- ggplot(df, aes(x = income, y = gamble)) +
+  geom_point(aes(group = sex)) +
+  xlab("Renda Anual") +
+  ylab("Gastos com Apostas") +
+  labs(caption = "Gráfico 1")
+
+plot_sex <- ggplot(df, aes(sex, gamble), add=TRUE) + 
+  geom_boxplot() +
+  xlab("Gênero dos Participantes") +
+  ylab("Gastos com Apostas") +
+  labs(caption = "Gráfico 2")
+
+plot_verbal <- ggplot(df, aes(x = verbal, y = gamble)) +
+  geom_point() +
+  xlab("Pontuação dos Participantes (MHS)") +
+  ylab("Gastos com Apostas") +
+  labs(caption = "Gráfico 3")
+
+plot_status <- ggplot(df, aes(x = status, y = gamble)) +
+  geom_point() +
+  xlab("Status") +
+  ylab("Gastos com Apostas") +
+  labs(caption = "Gráfico 4")
+
+plot_scatter <- grid.arrange(plot_income, plot_sex, plot_verbal, plot_status,  nrow = 2)
+```
+
+Baseado na nossa amostra e nesses gráficos, ainda que exista correlação entre as variáveis, os dados não aparentam visualmente ser muito lineares. 
+
+O gráfico 1 mostra uma concentração de dados quando a renda anual é inferior a 200 libras, como indicado pela mediana da tabela 2. 
+O gráfico 2 mostra que os participantes do gênero masculino apostam mais anualmente que o gênero feminino.
+Assim como na tabela 2, o gráfico 3 mostra melhor que a distribuição dos participantes, em relação a Escala de Vocabulário Mill Hill, centrada entorno do 7.
+
+
+\section{5. Análise Inferencial}
+
+O modelo de regressão utilizado nesse trabalho será:
+
+```{=tex}
+\begin{equation}
+Y_i = \beta_0 + \beta_1 X_{1 }
+\end{equation}
+```
+, onde:
+
+```{=tex}
+\begin{itemize}
+  \item $\beta_0,\beta_1$ são parâmetros.
+  \item $X$ é a constante conhecida.
+  \item $\epsilon_i \overset{iid}{\sim}  \mathcal{N}(0,\sigma^2)$ é um termo de erro aleatório.
+  \item $i = 1,2,...,n $.
+\end{itemize}
+```
+
+Serão construídos modelos de regressão simples entre a variável resposta, neste caso Gasto Anual em Apostas, e as demais variáveis, apresentado a equação da reta, o gráfico da regressão e os modelos encontrados serão testados a fim de determinar se são adequados. 
+
+Avalia-se primeiro a Análise de Variância (ANOVA) para encontrar se há diferença entre a distribuição das variáveis. Se o modelo for adequado, verifica-se então a normalidade pelo Teste de Shapiro-Wilks, heterocedasticidade pelo Teste de Breuch-Pagan e linearidade por um gráfico de resíduos.
+
+\subsection{5.1 Status e Apostas}
+
+```{r modelo_status, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+modelo_status <- lm(gamble ~ status, df)
+t4 <- summary(modelo_status) #quanto maior o valor de status, menor o valor de gamble
+coef_modelo_status <- coef(modelo_status); coef_modelo_status
+```
+
+A equação do modelo é:
+
+```{=tex}
+\begin{equation}
+Y_i = 23.46 - 0.092 X_{1 }
+\end{equation}
+```
+
+E o gráfico de regressão
+
+```{r plot_status, echo=FALSE, message=FALSE, warning=FALSE}
+plot_modelo_status <- ggplot(df, aes(x = status, y = gamble)) +
+      geom_point() +
+      geom_abline(slope = coef_modelo_status[2], intercept = coef_modelo_status[1], colour = "red") +
+  labs(title = "Modelo de Regressão Simples", x = "Status", y = "Gastos com Apostas", caption = "Gráfico 5")
+plot_modelo_status
+
+tabela_status <- data.frame(c("Modelo Status"),c(0.7364),c("Fracasso"))
+colnames(tabela_status) <- c("Teste ANOVA","p-valor","Resultado")
+kable(tabela_status, booktabs = TRUE, valign = 't') %>% kable_styling(latex_options = "HOLD_position")
+```
+
+Entretanto, o p-valor é superior a 0.05. Portanto não é um modelo adequado.
+
+\subsection{5.2 \textit{Verbal} e Apostas}
+
+```{r modelo_verbal, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+modelo_verbal <- lm(gamble ~ verbal, df)
+t5 <- summary(modelo_verbal) #quanto maior o valor de verbal, menor o valor de gamble
+coef_modelo_verbal <- coef(modelo_verbal); coef_modelo_verbal
+``` 
+
+A equação do modelo é:
+
+```{=tex}
+\begin{equation}
+Y_i = 44.17 - 3.73 X_{1 }
+\end{equation}
+```
+
+```{r plot_verbal,echo=FALSE, message=FALSE, warning=FALSE}
+plot_modelo_verbal <- ggplot(df, aes(x = verbal, y = gamble)) +
+      geom_point(aes(group = sex, colour = sex)) +
+      geom_abline(slope = coef_modelo_verbal[2], intercept = coef_modelo_verbal[1], colour = "red") +
+  labs(title = "Modelo de Regressão Simples", x = "Pontuação dos Participantes (MHS)", y = "Gastos com Apostas", caption = "Gráfico 6")
+plot_modelo_verbal
+#verbal e status tem p-valor insignificante, portanto ter esses betas estatisticamente não fazem diferença
+
+tabela_verbal <- data.frame(c("Modelo Verbal"),c(0.1372),c("Fracasso"))
+colnames(tabela_verbal) <- c("Teste ANOVA","p-valor","Resultado")
+kable(tabela_verbal, booktabs = TRUE, valign = 't') %>% kable_styling(latex_options = "HOLD_position")
+```
+Entretanto, o p-valor é superior a 0.05. Portanto não é um modelo adequado.
+
+\subsection{5.3 Gênero e Apostas}
+
+```{r modelo_sex, echo=FALSE, results=FALSE ,message=FALSE, warning=FALSE}
+modelo_sex <- lm(gamble ~ sex, df)
+t3 <- summary(modelo_sex)
+coef_modelo_sex <- coef(modelo_sex); coef_modelo_sex
+```
+
+A equação do modelo é:
+
+```{=tex}
+\begin{equation}
+Y_i = 3.86 + 25.90 X_{1 }
+\end{equation}
+```
+
+```{r coef_sex,echo=FALSE, message=FALSE, warning=FALSE}
+plot_sex <- ggplot(df, aes(sex, gamble), add=TRUE) + 
+  geom_boxplot() +
+  xlab("Gênero dos Participantes") +
+  ylab("Gastos com Apostas") +
+  labs(caption = "Gráfico 7")
+
+tabela_sex <- data.frame(c("Modelo Gênero"),c(0.004437),c("Sucesso"))
+colnames(tabela_sex) <- c("Teste ANOVA","p-valor","Resultado")
+kable(tabela_sex, booktabs = TRUE, valign = 't') %>% kable_styling(latex_options = "HOLD_position")
+```
+
+O p-valor do teste desse modelo é inferior a 0.05. Portanto não há diferença entre a distribuição dessas variáveis.
+
+\subsection{5.4 Renda e Apostas}
+
+Baseado no contexto dos dados, não é possível ter renda negativa, seria rasoável supor que 0 de renda deve se relacionar a 0 gastos em apostas, se considerar que os participantes com 0 de renda não apostem com dinheiro alheio. Este modelo de regressão linear será feito pelo ponto de origem (0,0). 
+
+```{r modelo_income, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+modelo_income <- lm(gamble ~ 0 + income, df)
+t2 <- summary(modelo_income)
+coef_modelo_income <- coef(modelo_income); coef_modelo_income
+```
+
+Este modelo apresenta a seguinte equação:
+
+```{=tex}
+\begin{equation}
+Y_i = 0.089 X_{1 }
+\end{equation}
+```
+
+E seu gráfico segue abaixo:
+
+```{r plot regressao, echo=FALSE, message=FALSE, warning=FALSE}
+plot_modelo_income <- ggplot(df, aes(x = income, y = gamble)) +
+  geom_point() +
+  geom_abline(slope = coef_modelo_income, intercept = 0, colour = "red") +
+  xlab("Renda Anual") +
+  ylab("Gastos Anuais com Apostas") +
+  labs(title = "Modelo de Regressão Simples", caption = "Gráfico 8")
+plot_modelo_income
+
+tabela_income <- data.frame(c("Modelo Renda"),c(t2$cov.unscaled),c("Sucesso"))
+colnames(tabela_income) <- c("Teste ANOVA","p-valor","Resultado")
+kable(tabela_income, booktabs = TRUE, valign = 't') %>% kable_styling(latex_options = "HOLD_position")
+```
+
+o p-valor do teste desse modelo é inferior a 0.05. Portanto não há diferença entre a distribuição dessas variáveis.
+
+Dos 4 modelos encontrados, apenas 2 foram considerados adequados pelo teste de Análise de Variância.
+\clearpage
+
+\subsection{5.5 Linearidade e Erros Independentes}
+
+O gráfico de resíduos permite observar a linearidade do modelo e independência das variáveis. Portanto, espera-se ver uma distribuição normal com média 0 ao longo do eixo y, e os erros resíduais estarem distribuídos mais igualitariamente ao longo do eixo x.   
+
+Os resíduos são, de certo modo, a diferença da média com os valores observáveis, como o modelo para gênero é dicotômico, seu gráfico de resíduo 
+
+```{r teste de independencia, echo=FALSE, message=FALSE, warning=FALSE}
+
+plot_residual <- residualPlot(modelo_income)
+
+df_modelo <- tibble(
+  valor_predito = predict(modelo_income), residuo = residuals(modelo_income))
+
+plot_linearidade <- ggplot(df_modelo, aes(x = valor_predito, y = residuo)) +
+  geom_point() +
+  geom_abline(slope = 0, intercept = 0, colour = "red" ) +
+  labs(x = "Valor Predito", y = "Resíduo", caption = "Gráfico 9")
+```
+
+```{r teste de linearidade, echo=FALSE, message=FALSE, warning=FALSE}
+plot_linearidade
+```
+
+O gráfico de resíduos não tem uma variância na distribuição dos pontos, apontando dependência entre as variáveis Renda e Apostas. Tem alguma distribuição entorno de 0, entretanto será usado o teste de Shapiro-Wilks para determinar se há normalidade no modelo. O gráfico indica que um modelo não linear pode ser mais adequado,    
+
+\subsection{5.6 Teste de Shapiro-Wilks e Teste de Breuch-Pagan}
+
+Para a avaliação do modelo serão realizados dois tipos de diagnósticoso: teste de Shapiro-Wilks, que busca analisar a normalidade dos resíduos e o teste de Breuch-Pagan, que, supondo normalidade, avalia a heterocedasticidade. O critério de decisão em ambos os testes,  se o p-valor for inferior a 0.05, o modelo será considerado um sucesso.
+
+```{r teste de normalidade, echo=FALSE, message=FALSE, warning=FALSE}
+shapiro_income <- shapiro.test(residuals(modelo_income)) 
+shapiro_sex <- shapiro.test(residuals(modelo_sex))
+tabela_shapiro <- data.frame(c("Modelo Renda", "Modelo Gênero"),c(shapiro_income$p.value, shapiro_sex$p.value),c("Fracasso","Fracasso"))
+colnames(tabela_shapiro) <- c("Teste de Shapiro-Wilks","p-valor","Resultado")
+kable(tabela_shapiro, booktabs = TRUE, valign = 't') %>% kable_styling(latex_options = "HOLD_position")
+```
+
+O p-valor para o teste de Shapiro-Wilks, de ambos os modelos, é inferior a 0.05. Portanto, não tem distribuição normal, e mesmo não que o modelo não siga as condições de normalidade, será avaliado o teste de Breuch-Pagan.
+
+```{r teste de heterocedasticidade, echo=FALSE, message=FALSE, warning=FALSE}
+breuch_income <- ncvTest(modelo_income)
+breuch_sex <- ncvTest(modelo_sex)
+tabela_breuch <- data.frame(c("Modelo Renda", "Modelo Gênero"),c(breuch_income$p, breuch_sex$p),c("Fracasso","Fracasso"))
+colnames(tabela_breuch) <- c("Teste de Breusch-Pagan","p-valor","Resultado")
+kable(tabela_breuch, booktabs = TRUE, valign = 't') %>% kable_styling(latex_options = "HOLD_position")
+
+```
+
+O p-valor para o teste de Breuch-Pagan, de ambos os modelos, é inferior a 0.05. Portanto, os dados não tem uma distribuição regular.
+
+
+\section{6 Conclusão}
+
+Baseado na amostra de dados e nos testes realizados, existe uma frequência maior dos participantes do gênero masculino que apostam e uma correlação moderada entre renda e gasto em apostas pode indicar que quanto maior for a renda, mais gastaria em apostas. 
+
+Os modelos de regressão encontrados não foram considerados adequados e é necessário refinamento do conjunto para montar um modelo mais apropriado.
+\clearpage
+
+\section{7. Bibliografia}
+
+IDE-SMITH S. G., Lea S. E. G., (1988). Journal of Gambling Behavior, cap.4, pgs.110-118. Disponível em: "http://www.utstat.utoronto.ca/reid/sta2201s/2012/teengamb.pdf"
+
+KUTNER, M. H., NACHTSHEIM, C., NETER, J., & LI, W. (2005). Applied Linear Statistical Models. 
