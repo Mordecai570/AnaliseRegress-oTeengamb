@@ -1,4 +1,4 @@
-# Analise de Regressão Teengamb
+# Análise de Regressão Teengamb
 Este trabalho tem como objetivo a aplicação de técnicas estatísticas fazendo análises descritivas, exploratórias e inferenciais sobre um modelo de regressão linear simples sobre um conjunto de dados "teengamb",  coletados em 1988, pelo departamento de psicologia da Universidade de Exeter, Inglaterra, que pesquisava sobre a menor idade de apostas em adolescentes britânicos.
 
 # Metodologia
